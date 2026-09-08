@@ -119,15 +119,20 @@ describe('TodoPageComponent', () => {
 
   it('should addTodo when form valid and trimmed title not empty, then reset form', () => {
     fixture.detectChanges();
-    component.todoForm.setValue({ title: '  New Task  ' });
+    component.todoForm.setValue({ title: '  New Task  ', priority: 'High', dueDate: '2026-09-10' });
     component.addTodo();
-    expect(facade.addTodo).toHaveBeenCalledWith({ title: 'New Task' });
-    expect(component.todoForm.value.title).toBeNull();
+    expect(facade.addTodo).toHaveBeenCalledWith({
+      title: 'New Task',
+      priority: 'High',
+      dueDate: '2026-09-10',
+      projectId: 1
+    });
+    expect(component.todoForm.value.title).toBe('');
   });
 
   it('should not addTodo when form invalid or empty after trim', () => {
     fixture.detectChanges();
-    component.todoForm.setValue({ title: '  ' });
+    component.todoForm.setValue({ title: '  ', priority: 'Medium', dueDate: '2026-09-10' });
     component.addTodo();
     expect(facade.addTodo).not.toHaveBeenCalled();
   });

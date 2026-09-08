@@ -77,20 +77,14 @@ export class TodoPageComponent implements OnInit {
     { label: 'Analytics', icon: 'analytics' }
   ];
 
-  readonly weekDays = [
-    { label: 'Mon', value: 35, today: false },
-    { label: 'Tue', value: 55, today: false },
-    { label: 'Wed', value: 27, today: false },
-    { label: 'Thu', value: 72, today: true },
-    { label: 'Fri', value: 46, today: false },
-    { label: 'Sat', value: 20, today: false },
-    { label: 'Sun', value: 31, today: false }
-  ];
+  weekDays = computed(() => this.buildWeekDays());
 
   calendarDays = this.buildCalendarDays();
 
   readonly todoForm = this.fb.nonNullable.group({
-    title: ['', [Validators.required, Validators.minLength(3)]]
+    title: ['', [Validators.required, Validators.minLength(3)]],
+    priority: ['Medium' as Todo['priority'], Validators.required],
+    dueDate: [this.dateKey(new Date()), Validators.required]
   });
 
   filteredTodos = computed(() => {
@@ -115,6 +109,24 @@ export class TodoPageComponent implements OnInit {
     });
   });
 
+  emptyTasksTitle = computed(() => {
+    if (this.searchQuery().trim()) return 'No matching tasks';
+    if (this.activeNav() === 'Calendar') return 'No tasks on this day';
+    if (this.filter() === 'active') return 'No tasks in progress';
+    if (this.filter() === 'completed') return 'No completed tasks';
+    if (this.activeProjectId() !== null) return 'No tasks in this project';
+    return 'Nothing here yet';
+  });
+
+  emptyTasksMessage = computed(() => {
+    if (this.searchQuery().trim()) return 'Try a different search term.';
+    if (this.activeNav() === 'Calendar') return 'Choose another day or create a task for this date.';
+    if (this.filter() === 'active') return 'You are all caught up. New work will appear here.';
+    if (this.filter() === 'completed') return 'Completed tasks will appear here when you finish them.';
+    if (this.activeProjectId() !== null) return 'Add a task to this project to start making progress.';
+    return 'Add your first task to start making progress.';
+  });
+
   activeCount = computed(() => this.todos().filter(todo => !todo.completed).length);
   completedCount = computed(() => this.todos().filter(todo => todo.completed).length);
   unreadNotifications = computed(() => this.notifications().filter(item => !item.read).length);
@@ -128,6 +140,21 @@ export class TodoPageComponent implements OnInit {
   progress = computed(() => {
     const total = this.todos().length;
     return total ? Math.round((this.completedCount() / total) * 100) : 0;
+  });
+  nextDueLabel = computed(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDates = this.todos()
+      .filter(todo => !todo.completed && (this.activeProjectId() === null || todo.projectId === this.activeProjectId()))
+      .map(todo => new Date(todo.dueDate))
+      .filter(date => !Number.isNaN(date.valueOf()))
+      .sort((left, right) => left.valueOf() - right.valueOf());
+
+    if (!dueDates.length) return 'No upcoming tasks';
+
+    const daysUntilDue = Math.ceil((dueDates[0].setHours(0, 0, 0, 0) - today.valueOf()) / 86_400_000);
+    if (daysUntilDue <= 0) return daysUntilDue === 0 ? 'Due today' : 'Overdue';
+    return `Due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`;
   });
 
   todayLabel = new Intl.DateTimeFormat('en-US', {
@@ -229,10 +256,13 @@ export class TodoPageComponent implements OnInit {
 
   addTodo(): void {
     if (this.todoForm.invalid) return;
-    const title = this.todoForm.controls.title.value.trim();
+    const { title: rawTitle, priority, dueDate } = this.todoForm.getRawValue();
+    const title = rawTitle.trim();
     if (!title) return;
     this.facade.addTodo({
       title,
+      priority,
+      dueDate,
       projectId: this.activeProjectId() ?? 1
     });
     this.todoForm.reset();
@@ -349,6 +379,39 @@ export class TodoPageComponent implements OnInit {
         hasTask: this.todos().some(todo => this.dateKey(new Date(todo.dueDate)) === dateValue)
       };
     });
+  }
+
+  private buildWeekDays(): Array<{
+    label: string;
+    value: number;
+    today: boolean;
+    count: number;
+  }> {
+    const today = new Date();
+    const mondayOffset = (today.getDay() + 6) % 7;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + index);
+      const dateValue = this.dateKey(date);
+      const count = this.todos().filter(todo => this.dateKey(new Date(todo.dueDate)) === dateValue).length;
+
+      return {
+        label: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date),
+        value: 0,
+        today: dateValue === this.dateKey(today),
+        count
+      };
+    });
+    const maxCount = Math.max(...days.map(day => day.count), 0);
+
+    return days.map(day => ({
+      ...day,
+      value: maxCount ? Math.max(12, Math.round((day.count / maxCount) * 100)) : 8
+    }));
   }
 
   private dateKey(date: Date): string {

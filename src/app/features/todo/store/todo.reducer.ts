@@ -27,7 +27,8 @@ export const todoReducer = createReducer(
   on(TodoActions.loadTodosSuccess, (state, { todos }) => ({
     ...state,
     todos,
-    loading: false
+    loading: false,
+    error: null
   })),
   on(TodoActions.loadTodosFailure, (state, { error }) => ({
     ...state,
@@ -43,7 +44,8 @@ export const todoReducer = createReducer(
   on(TodoActions.addTodoSuccess, (state, { todo }) => ({
     ...state,
     todos: [...state.todos, todo],
-    loading: false
+    loading: false,
+    error: null
   })),
   on(TodoActions.addTodoFailure, (state, { error }) => ({
     ...state,
@@ -59,7 +61,8 @@ export const todoReducer = createReducer(
   on(TodoActions.updateTodoSuccess, (state, { todo }) => ({
     ...state,
     todos: state.todos.map(t => t.id === todo.id ? todo : t),
-    loading: false
+    loading: false,
+    error: null
   })),
   on(TodoActions.updateTodoFailure, (state, { error }) => ({
     ...state,
@@ -75,7 +78,8 @@ export const todoReducer = createReducer(
   on(TodoActions.deleteTodoSuccess, (state, { id }) => ({
     ...state,
     todos: state.todos.filter(t => t.id !== id),
-    loading: false
+    loading: false,
+    error: null
   })),
   on(TodoActions.deleteTodoFailure, (state, { error }) => ({
     ...state,
@@ -84,10 +88,9 @@ export const todoReducer = createReducer(
   })),
 
   // Toggle Todo
-  on(TodoActions.toggleTodo, (state, { id, completed }) => ({
+  on(TodoActions.toggleTodo, (state) => ({
     ...state,
-    todos: state.todos.map(t =>
-      t.id === id ? { ...t, completed } : t
-    )
+    loading: true,
+    error: null
   }))
 );
